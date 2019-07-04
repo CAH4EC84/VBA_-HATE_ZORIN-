@@ -1,8 +1,8 @@
-'Ацкий ад мои глаза вытекли когда выяснилось что надо переписать это с аутлука 2000 на аутлук 2010.
+'Àöêèé àä ìîè ãëàçà âûòåêëè êîãäà âûÿñíèëîñü ÷òî íàäî ïåðåïèñàòü ýòî ñ àóòëóêà 2000 íà àóòëóê 2010.
 
 Sub OutL()
 Dim WorkDir As String
-WorkDir = "z:\"
+
 
 
 
@@ -32,7 +32,7 @@ Dim sDBPath As String
 sDBPath = "D:\MedlineAdminSoft\Temp\prices_2000.accdb"
     
 'SQL Query String
-    sQuery = "SELECT  pricemail,ident, arx,fileext,extrcmd   FROM _Info;"
+    sQuery = "SELECT DISTINCT pricemail,ident, arx,fileext,extrcmd   FROM _Info;"
     
     'ADODB Conenction String to initiate connection with MDB ACCESS
     sConnString = "Provider=Microsoft.ace.OLEDB.12.0; Data Source=" & sDBPath & ";"
@@ -47,102 +47,52 @@ sDBPath = "D:\MedlineAdminSoft\Temp\prices_2000.accdb"
     
 
 
-For Each myitem In myitems 'Для каждого письма
+For Each myitem In myitems 'Äëÿ êàæäîãî ïèñüìà
+WorkDir = "z:\"
+AttachName = FileName = FileExt = ""
+
+
 If myitem.Class = olMail Then
-    Set Attachs = myitem.Attachments
-    If Attachs.Count > 0 Then 'при наличи вложения
-    dbRecSet.MoveFirst
-     Do While Not dbRecSet.EOF 'пробегаемся по таблице
-            If (myitem.Recipients(1).Address) = dbRecSet.Fields(0).Value Then 'если почта зарегистрирована
+    If myitem.Attachments.Count > 0 Then 'ïðè íàëè÷è âëîæåíèÿ
+    
+    dbRecSet.MoveFirst 'èäåì íà ïåðâóþ ñòðî÷êó òàáëèöû
+    Do While Not dbRecSet.EOF  'ïðîáåãàåìñÿ ïî òàáëèöå
+            If (myitem.Recipients(1).Address) = dbRecSet.Fields(0).Value Then 'åñëè ïî÷òà çàðåãèñòðèðîâàíà
                ' MsgBox ("Find mail address")
-                For Each Attach In Attachs 'Сохраняем вложения
-                    Found = True
-                    Attach.SaveAsFile (WorkDir & dbRecSet.Fields(1).Value & "\Archive." & dbRecSet.Fields(2).Value)  ' Задаем имя для сохранения и сохраняем (arx)
-                    If Err.Number = 0 Then 'Если сохранилось то распаковываем и переименовываем
-                        'тут  через одно место =)
+                For Each Attach In myitem.Attachments 'Ñîõðàíÿåì âëîæåíèÿ
+                    WorkDir = "z:\"
+                    Attach.SaveAsFile (WorkDir & dbRecSet.Fields(1).Value & "\Archive." & dbRecSet.Fields(2).Value)  ' Çàäàåì èìÿ äëÿ ñîõðàíåíèÿ è ñîõðàíÿåì (arx)
+                    If Err.Number = 0 Then 'Åñëè ñîõðàíèëîñü òî ðàñïàêîâûâàåì è ïåðåèìåíîâûâàåì
+                        'òóò  ÷åðåç îäíî ìåñòî =)
                         extrCmd = dbRecSet.Fields(4).Value
                         AttachName = "Archive." & dbRecSet.Fields(2).Value
                         WorkDir = WorkDir & dbRecSet.Fields(1).Value
                         FileName = dbRecSet.Fields(1).Value
                         FileExt = dbRecSet.Fields(3).Value
                         
-                        'Формируем из шаблонной строки индивидуальную %WD\..\ExtrMv.cmd %WD %AN %FN %FE
+                        'Ôîðìèðóåì èç øàáëîííîé ñòðîêè èíäèâèäóàëüíóþ %WD\..\ExtrMv.cmd %WD %AN %FN %FE
                         extrCmd = Replace(extrCmd, "%WD", WorkDir)
                         extrCmd = Replace(extrCmd, "%AN", WorkDir & "\" & AttachName)
                         extrCmd = Replace(extrCmd, "%FN", WorkDir & "\" & FileName)
                         
                         extrCmd = Replace(extrCmd, "%FE", FileExt)
+                        extrCmd = extrCmd & " " & dbRecSet.Fields(4).Value
+                        'MsgBox (extrCmd)
+                        'Íàïèñàòü ïðîâåðêó äëÿ RAR ôàéëîâ. äîáàâèòü 4ûé ïàðàìåòð ðàñøèðåíèå ôàéëà âíóòðè àðõèâà.
                         
-                        MsgBox (extrCmd)
                         Shell (extrCmd)
-                    End If
+                     End If
+                     
                 Next Attach
-            Else
-                dbRecSet.MoveNext 'следущий адрес из таблицы
-            
-            
             End If
-        
-            
-    
+            If Not dbRecSet.EOF Then
+            dbRecSet.MoveNext
+            End If
     Loop
-    '
-    
-
-    
     End If
 End If
-
+myitem.Delete
 Next myitem
 
-'If the subject isn't found:
-If Not Found Then
-    MsgBox ("empty")
-End If
-
-'myOlApp.Qui
-'Set myOlApp = Nothing
-
 End Sub
 
-
-
-
-Sub VBA_Connect_To_MDB_ACCESS()
-
- 
-    'Make Reference to Microsoft AxticX Data Objects Library
-    'Dim dbConn As ADODB.Connection, dbRecSet As ADODB.Recordset
-    Dim sConnString As String, sQuery As String
-    Dim sDBPath As String
-    
-    'Define MDB ACCESS file path
-    sDBPath = "D:\MedlineAdminSoft\Temp\prices_2000.accdb"
-    
-    'SQL Query String
-    sQuery = "SELECT  [_Info].pricemail,[_Info].ident, , [_Info].arx,[_Info].fileext,[_Info].extrcmd, [_Info].importcmd,   FROM _Info;"
-    
-    'ADODB Conenction String to initiate connection with MDB ACCESS
-    sConnString = "Provider=Microsoft.ace.OLEDB.12.0; Data Source=" & sDBPath & ";"
-    
-    'Open Connection
-    Set dbConn = New ADODB.Connection
-    dbConn.Open ConnectionString:=sConnString
-    
-    'Execute SQL Query & Get Records matching the query to recordset
-    Set dbRecSet = New ADODB.Recordset
-    dbRecSet.Open Source:=sQuery, ActiveConnection:=dbConn
-    
-    'If Query Returned Values, Read them one by one
-    If (dbRecSet.RecordCount <> 0) Then
-        Do While Not dbRecSet.EOF
-            MsgBox dbRecSet.Fields(1).Value
-            dbRecSet.MoveNext
-        Loop
-    End If
-    
-    'Close Connection & RecordSet
-    Set dbRecSet = Nothing
-    dbConn.Close
-    Set dbConn = Nothing
-End Sub
