@@ -1,0 +1,148 @@
+'Ацкий ад мои глаза вытекли когда выяснилось что надо переписать это с аутлука 2000 на аутлук 2010.
+
+Sub OutL()
+Dim WorkDir As String
+WorkDir = "z:\"
+
+
+
+Dim myOlApp As New Outlook.Application
+Dim myNameSpace As Outlook.NameSpace
+Dim myInbox As Outlook.MAPIFolder
+Dim myitems As Outlook.Items
+Dim myitem As Object
+Dim Found As Boolean
+Dim Recipient
+Dim Attachs
+
+Set myNameSpace = myOlApp.GetNamespace("MAPI")
+Set myInboxdef = myNameSpace.GetDefaultFolder(olFolderInbox)
+Set myitemsDef = myInboxdef.Items
+
+Set myInbox = myNameSpace.Folders(3).Folders(2)
+Set myitems = myInbox.Items
+
+Found = False
+
+'Make Reference to Microsoft AxticX Data Objects Library
+'Dim dbConn As ADODB.Connection, dbRecSet As ADODB.Recordset
+Dim sConnString As String, sQuery As String
+Dim sDBPath As String
+'Define MDB ACCESS file path
+sDBPath = "D:\MedlineAdminSoft\Temp\prices_2000.accdb"
+    
+'SQL Query String
+    sQuery = "SELECT  pricemail,ident, arx,fileext,extrcmd   FROM _Info;"
+    
+    'ADODB Conenction String to initiate connection with MDB ACCESS
+    sConnString = "Provider=Microsoft.ace.OLEDB.12.0; Data Source=" & sDBPath & ";"
+    
+    'Open Connection
+    Set dbConn = New ADODB.Connection
+    dbConn.Open ConnectionString:=sConnString
+    
+    'Execute SQL Query & Get Records matching the query to recordset
+    Set dbRecSet = New ADODB.Recordset
+    dbRecSet.Open Source:=sQuery, ActiveConnection:=dbConn
+    
+
+
+For Each myitem In myitems 'Для каждого письма
+If myitem.Class = olMail Then
+    Set Attachs = myitem.Attachments
+    If Attachs.Count > 0 Then 'при наличи вложения
+    dbRecSet.MoveFirst
+     Do While Not dbRecSet.EOF 'пробегаемся по таблице
+            If (myitem.Recipients(1).Address) = dbRecSet.Fields(0).Value Then 'если почта зарегистрирована
+               ' MsgBox ("Find mail address")
+                For Each Attach In Attachs 'Сохраняем вложения
+                    Found = True
+                    Attach.SaveAsFile (WorkDir & dbRecSet.Fields(1).Value & "\Archive." & dbRecSet.Fields(2).Value)  ' Задаем имя для сохранения и сохраняем (arx)
+                    If Err.Number = 0 Then 'Если сохранилось то распаковываем и переименовываем
+                        'тут  через одно место =)
+                        extrCmd = dbRecSet.Fields(4).Value
+                        AttachName = "Archive." & dbRecSet.Fields(2).Value
+                        WorkDir = WorkDir & dbRecSet.Fields(1).Value
+                        FileName = dbRecSet.Fields(1).Value
+                        FileExt = dbRecSet.Fields(3).Value
+                        
+                        'Формируем из шаблонной строки индивидуальную %WD\..\ExtrMv.cmd %WD %AN %FN %FE
+                        extrCmd = Replace(extrCmd, "%WD", WorkDir)
+                        extrCmd = Replace(extrCmd, "%AN", WorkDir & "\" & AttachName)
+                        extrCmd = Replace(extrCmd, "%FN", WorkDir & "\" & FileName)
+                        
+                        extrCmd = Replace(extrCmd, "%FE", FileExt)
+                        
+                        MsgBox (extrCmd)
+                        Shell (extrCmd)
+                    End If
+                Next Attach
+            Else
+                dbRecSet.MoveNext 'следущий адрес из таблицы
+            
+            
+            End If
+        
+            
+    
+    Loop
+    '
+    
+
+    
+    End If
+End If
+
+Next myitem
+
+'If the subject isn't found:
+If Not Found Then
+    MsgBox ("empty")
+End If
+
+'myOlApp.Qui
+'Set myOlApp = Nothing
+
+End Sub
+
+
+
+
+Sub VBA_Connect_To_MDB_ACCESS()
+
+ 
+    'Make Reference to Microsoft AxticX Data Objects Library
+    'Dim dbConn As ADODB.Connection, dbRecSet As ADODB.Recordset
+    Dim sConnString As String, sQuery As String
+    Dim sDBPath As String
+    
+    'Define MDB ACCESS file path
+    sDBPath = "D:\MedlineAdminSoft\Temp\prices_2000.accdb"
+    
+    'SQL Query String
+    sQuery = "SELECT  [_Info].pricemail,[_Info].ident, , [_Info].arx,[_Info].fileext,[_Info].extrcmd, [_Info].importcmd,   FROM _Info;"
+    
+    'ADODB Conenction String to initiate connection with MDB ACCESS
+    sConnString = "Provider=Microsoft.ace.OLEDB.12.0; Data Source=" & sDBPath & ";"
+    
+    'Open Connection
+    Set dbConn = New ADODB.Connection
+    dbConn.Open ConnectionString:=sConnString
+    
+    'Execute SQL Query & Get Records matching the query to recordset
+    Set dbRecSet = New ADODB.Recordset
+    dbRecSet.Open Source:=sQuery, ActiveConnection:=dbConn
+    
+    'If Query Returned Values, Read them one by one
+    If (dbRecSet.RecordCount <> 0) Then
+        Do While Not dbRecSet.EOF
+            MsgBox dbRecSet.Fields(1).Value
+            dbRecSet.MoveNext
+        Loop
+    End If
+    
+    'Close Connection & RecordSet
+    Set dbRecSet = Nothing
+    dbConn.Close
+    Set dbConn = Nothing
+End Sub
