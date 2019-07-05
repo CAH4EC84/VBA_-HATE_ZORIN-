@@ -1,10 +1,8 @@
+Public Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal Milliseconds As LongPtr) 'Äëÿ Sleep
 'Àöêèé àä ìîè ãëàçà âûòåêëè êîãäà âûÿñíèëîñü ÷òî íàäî ïåðåïèñàòü ýòî ñ àóòëóêà 2000 íà àóòëóê 2010.
 
 Sub OutL()
 Dim WorkDir As String
-
-
-
 
 Dim myOlApp As New Outlook.Application
 Dim myNameSpace As Outlook.NameSpace
@@ -29,7 +27,7 @@ Found = False
 Dim sConnString As String, sQuery As String
 Dim sDBPath As String
 'Define MDB ACCESS file path
-sDBPath = "D:\MedlineAdminSoft\Temp\prices_2000.accdb"
+sDBPath = "z:\prices_2000.accdb"
     
 'SQL Query String
     sQuery = "SELECT DISTINCT pricemail,ident, arx,fileext,extrcmd   FROM _Info;"
@@ -46,53 +44,60 @@ sDBPath = "D:\MedlineAdminSoft\Temp\prices_2000.accdb"
     dbRecSet.Open Source:=sQuery, ActiveConnection:=dbConn
     
 
-
 For Each myitem In myitems 'Äëÿ êàæäîãî ïèñüìà
 WorkDir = "z:\"
-AttachName = FileName = FileExt = ""
-
-
-If myitem.Class = olMail Then
-    If myitem.Attachments.Count > 0 Then 'ïðè íàëè÷è âëîæåíèÿ
+    AttachName = FileName = FileExt = ""
+    If myitem.Class = olMail Then
+        If myitem.Attachments.Count > 0 Then 'ïðè íàëè÷è âëîæåíèÿ
+        
+        dbRecSet.MoveFirst 'èäåì íà ïåðâóþ ñòðî÷êó òàáëèöû
+        Do While Not dbRecSet.EOF  'ïðîáåãàåìñÿ ïî òàáëèöå
     
-    dbRecSet.MoveFirst 'èäåì íà ïåðâóþ ñòðî÷êó òàáëèöû
-    Do While Not dbRecSet.EOF  'ïðîáåãàåìñÿ ïî òàáëèöå
-            If (myitem.Recipients(1).Address) = dbRecSet.Fields(0).Value Then 'åñëè ïî÷òà çàðåãèñòðèðîâàíà
-               ' MsgBox ("Find mail address")
-                For Each Attach In myitem.Attachments 'Ñîõðàíÿåì âëîæåíèÿ
-                    WorkDir = "z:\"
-                    Attach.SaveAsFile (WorkDir & dbRecSet.Fields(1).Value & "\Archive." & dbRecSet.Fields(2).Value)  ' Çàäàåì èìÿ äëÿ ñîõðàíåíèÿ è ñîõðàíÿåì (arx)
-                    If Err.Number = 0 Then 'Åñëè ñîõðàíèëîñü òî ðàñïàêîâûâàåì è ïåðåèìåíîâûâàåì
-                        'òóò  ÷åðåç îäíî ìåñòî =)
-                        extrCmd = dbRecSet.Fields(4).Value
-                        AttachName = "Archive." & dbRecSet.Fields(2).Value
-                        WorkDir = WorkDir & dbRecSet.Fields(1).Value
-                        FileName = dbRecSet.Fields(1).Value
-                        FileExt = dbRecSet.Fields(3).Value
-                        
-                        'Ôîðìèðóåì èç øàáëîííîé ñòðîêè èíäèâèäóàëüíóþ %WD\..\ExtrMv.cmd %WD %AN %FN %FE
-                        extrCmd = Replace(extrCmd, "%WD", WorkDir)
-                        extrCmd = Replace(extrCmd, "%AN", WorkDir & "\" & AttachName)
-                        extrCmd = Replace(extrCmd, "%FN", WorkDir & "\" & FileName)
-                        
-                        extrCmd = Replace(extrCmd, "%FE", FileExt)
-                        extrCmd = extrCmd & " " & dbRecSet.Fields(4).Value
-                        'MsgBox (extrCmd)
-                        'Íàïèñàòü ïðîâåðêó äëÿ RAR ôàéëîâ. äîáàâèòü 4ûé ïàðàìåòð ðàñøèðåíèå ôàéëà âíóòðè àðõèâà.
-                        
-                        Shell (extrCmd)
-                     End If
-                     
-                Next Attach
-            End If
-            If Not dbRecSet.EOF Then
-            dbRecSet.MoveNext
-            End If
-    Loop
+            
+                If (UCase(myitem.Recipients(1).Address)) = UCase(dbRecSet.Fields(0).Value) Then 'åñëè ïî÷òà çàðåãèñòðèðîâàíà
+                   'MsgBox ("Find mail address")
+                    For Each Attach In myitem.Attachments 'Ñîõðàíÿåì âëîæåíèÿ
+                        WorkDir = "z:\"
+                        Attach.SaveAsFile (WorkDir & dbRecSet.Fields(1).Value & "\Archive." & dbRecSet.Fields(2).Value)  ' Çàäàåì èìÿ äëÿ ñîõðàíåíèÿ è ñîõðàíÿåì (arx)
+                        If Err.Number = 0 Then 'Åñëè ñîõðàíèëîñü òî ðàñïàêîâûâàåì è ïåðåèìåíîâûâàåì
+                            'òóò  ÷åðåç îäíî ìåñòî =)
+                            extrCmd = dbRecSet.Fields(4).Value
+                            AttachName = "Archive." & dbRecSet.Fields(2).Value
+                            WorkDir = WorkDir & dbRecSet.Fields(1).Value
+                            FileName = dbRecSet.Fields(1).Value
+                            FileExt = dbRecSet.Fields(3).Value
+                            
+                            'Ôîðìèðóåì èç øàáëîííîé ñòðîêè èíäèâèäóàëüíóþ %WD\..\ExtrMv.cmd %WD %AN %FN %FE
+                            extrCmd = Replace(extrCmd, "%WD", WorkDir)
+                            extrCmd = Replace(extrCmd, "%AN", WorkDir & "\" & AttachName)
+                            extrCmd = Replace(extrCmd, "%FN", WorkDir & "\" & FileName)
+                            
+                            extrCmd = Replace(extrCmd, "%FE", FileExt)
+                            extrCmd = extrCmd & " " & dbRecSet.Fields(4).Value
+                             If UCase((dbRecSet.Fields(4).Value)) = "RAR" Then MsgBox (myitem.Recipients(1).Address)
+                            'Íàïèñàòü ïðîâåðêó äëÿ RAR ôàéëîâ. äîáàâèòü 4ûé ïàðàìåòð ðàñøèðåíèå ôàéëà âíóòðè àðõèâà.
+                            
+                            Shell (extrCmd)
+                            Else
+                            MsgBox ("CHECK:" & (WorkDir & dbRecSet.Fields(1).Value & "\Archive." & dbRecSet.Fields(2).Value))
+                            Err.Number = 0
+                         End If
+                         
+                    Next Attach
+                End If
+                If Not dbRecSet.EOF Then
+                dbRecSet.MoveNext
+                End If
+        Loop
+        End If
     End If
-End If
-myitem.Delete
+    myitem.Delete
+    'myitem.FlagIcon (olRedFlagIcon) 'olRedFlagIcon 'olNoFlagIcon
+Sleep (500)
 Next myitem
+MsgBox ("it's stop")
 
 End Sub
+
+
 
