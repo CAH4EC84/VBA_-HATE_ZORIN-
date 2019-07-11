@@ -1,103 +1,91 @@
-Public Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal Milliseconds As LongPtr) 'Äëÿ Sleep
-'Àöêèé àä ìîè ãëàçà âûòåêëè êîãäà âûÿñíèëîñü ÷òî íàäî ïåðåïèñàòü ýòî ñ àóòëóêà 2000 íà àóòëóê 2010.
+' SCRIPT 10-07-19 Alexander Golikov
+'7z settings
+Dim zPath
+	zPath = "Z:\7-Zip\7z.exe "
+'Outlook settings
+Dim mailAcc
+	mailAcc = "medlineuser@price.medline.spb.ru"
+Dim inbox 
+	inbox = "Входящие"
+Dim arc 
+	arc = "Archive"
 
-Sub OutL()
-Dim WorkDir As String
+'Shell
+Set oShell = CreateObject("WScript.Shell")
 
-Dim myOlApp As New Outlook.Application
-Dim myNameSpace As Outlook.NameSpace
-Dim myInbox As Outlook.MAPIFolder
-Dim myitems As Outlook.Items
-Dim myitem As Object
-Dim Found As Boolean
-Dim Recipient
-Dim Attachs
+'Oulook
+Set OlApp = WScript.CreateObject("Outlook.Application")
+Set NameSpace = OlApp.getNamespace("MAPI")
+Set accountFolder = NameSpace.folders(mailAcc)
+Set inboxFolder = accountFolder.folders(inbox)
+Set arcFolder = accountFolder.folders(arc)
 
-Set myNameSpace = myOlApp.GetNamespace("MAPI")
-Set myInboxdef = myNameSpace.GetDefaultFolder(olFolderInbox)
-Set myitemsDef = myInboxdef.Items
+'DB Settings
+Dim WorkDir
+	WorkDir = "z:\"
+Dim sDBPath
+	sDBPath = WorkDir & "prices_2000.accdb"
+Dim sConnString
+	sConnString = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" & sDBPath
+Dim sQuery 
+	sQuery ="SELECT DISTINCT pricemail,ident, arx,fileext,extrcmd   FROM _Info;"
+'Open Connection get table _Info
+Set dbConn = CreateObject("ADODB.Connection")
+dbConn.ConnectionString = sConnString
+dbConn.Open
 
-Set myInbox = myNameSpace.Folders(3).Folders(2)
-Set myitems = myInbox.Items
+'Execute SQL Query & Get Records matching the query to recordset
+Set dbRecSet = CreateObject("ADODB.Recordset")
+dbRecSet.Open sQuery, dbConn
 
-Found = False
+While inboxFolder.items.count > 0 'Iterate from incoming mails
+	For Each item In inboxFolder.items
+		If item.attachments.count > 0  Then 'check mail only with attach
+			For Each recipient In item.recipients
+				addrFound = False
+				WScript.Echo (chr(13) &"check mail->" & recipient.Address)
+				dbRecSet.MoveFirst
+				While (Not dbRecSet.EOF and not addrFound)'scan table for email					
+					If UCase(recipient.Address) = UCase(dbRecSet.Fields(0).Value) Then 'found client
+						addrFound = True
+						WScript.Echo ("valid adress found")
+						For Each attach In item.attachments						
+						WScript.Echo ("attach check - " & attach  )
+							If InStr(1,attach,dbRecSet.Fields(2).Value,vbTextCompare) Then 'attach valid format
+								WScript.Echo ("valid attach found")
+								If UCase(dbRecSet.Fields(2).Value) = UCase(dbRecSet.Fields(3).Value) Then 'check unzip or just save
+									savePath = WorkDir & dbRecSet.Fields(1).Value & "\"
+									saveArc = savePath  & dbRecSet.Fields(1).Value & "." & dbRecSet.Fields(3).Value
+									WScript.Echo ("just saved ->" & saveArc)							
+									attach.SaveAsFile(saveArc)
+								Else 'unzip
+									savePath = WorkDir & dbRecSet.Fields(1).Value & "\"
+									saveArc = savePath  & "Archive."&dbRecSet.Fields(2).Value
+									attach.SaveAsFile(saveArc)							
+									'Extract file from arc ussing 7z
+									extCmd ="cmd /c " & zPath &" e -so " & saveArc &  " > " & savePath & dbRecSet.Fields(1).Value & "." & dbRecSet.Fields(3).Value
+									WScript.Echo ("extCmd->" & extCmd)
+									oShell.Run  extCmd,0,True
+								End If
+							End If
+						Next
+					End If
+					dbRecSet.MoveNext
+				Wend
+			Next
+			item.move(arcFolder)
+		End If
+	Next
+Wend
 
-'Make Reference to Microsoft AxticX Data Objects Library
-'Dim dbConn As ADODB.Connection, dbRecSet As ADODB.Recordset
-Dim sConnString As String, sQuery As String
-Dim sDBPath As String
-'Define MDB ACCESS file path
-sDBPath = "z:\prices_2000.accdb"
-    
-'SQL Query String
-    sQuery = "SELECT DISTINCT pricemail,ident, arx,fileext,extrcmd   FROM _Info;"
-    
-    'ADODB Conenction String to initiate connection with MDB ACCESS
-    sConnString = "Provider=Microsoft.ace.OLEDB.12.0; Data Source=" & sDBPath & ";"
-    
-    'Open Connection
-    Set dbConn = New ADODB.Connection
-    dbConn.Open ConnectionString:=sConnString
-    
-    'Execute SQL Query & Get Records matching the query to recordset
-    Set dbRecSet = New ADODB.Recordset
-    dbRecSet.Open Source:=sQuery, ActiveConnection:=dbConn
-    
 
-For Each myitem In myitems 'Äëÿ êàæäîãî ïèñüìà
-WorkDir = "z:\"
-    AttachName = FileName = FileExt = ""
-    If myitem.Class = olMail Then
-        If myitem.Attachments.Count > 0 Then 'ïðè íàëè÷è âëîæåíèÿ
-        
-        dbRecSet.MoveFirst 'èäåì íà ïåðâóþ ñòðî÷êó òàáëèöû
-        Do While Not dbRecSet.EOF  'ïðîáåãàåìñÿ ïî òàáëèöå
-    
-            
-                If (UCase(myitem.Recipients(1).Address)) = UCase(dbRecSet.Fields(0).Value) Then 'åñëè ïî÷òà çàðåãèñòðèðîâàíà
-                   'MsgBox ("Find mail address")
-                    For Each Attach In myitem.Attachments 'Ñîõðàíÿåì âëîæåíèÿ
-                        WorkDir = "z:\"
-                        Attach.SaveAsFile (WorkDir & dbRecSet.Fields(1).Value & "\Archive." & dbRecSet.Fields(2).Value)  ' Çàäàåì èìÿ äëÿ ñîõðàíåíèÿ è ñîõðàíÿåì (arx)
-                        If Err.Number = 0 Then 'Åñëè ñîõðàíèëîñü òî ðàñïàêîâûâàåì è ïåðåèìåíîâûâàåì
-                            'òóò  ÷åðåç îäíî ìåñòî =)
-                            extrCmd = dbRecSet.Fields(4).Value
-                            AttachName = "Archive." & dbRecSet.Fields(2).Value
-                            WorkDir = WorkDir & dbRecSet.Fields(1).Value
-                            FileName = dbRecSet.Fields(1).Value
-                            FileExt = dbRecSet.Fields(3).Value
-                            
-                            'Ôîðìèðóåì èç øàáëîííîé ñòðîêè èíäèâèäóàëüíóþ %WD\..\ExtrMv.cmd %WD %AN %FN %FE
-                            extrCmd = Replace(extrCmd, "%WD", WorkDir)
-                            extrCmd = Replace(extrCmd, "%AN", WorkDir & "\" & AttachName)
-                            extrCmd = Replace(extrCmd, "%FN", WorkDir & "\" & FileName)
-                            
-                            extrCmd = Replace(extrCmd, "%FE", FileExt)
-                            extrCmd = extrCmd & " " & dbRecSet.Fields(4).Value
-                             If UCase((dbRecSet.Fields(4).Value)) = "RAR" Then MsgBox (myitem.Recipients(1).Address)
-                            'Íàïèñàòü ïðîâåðêó äëÿ RAR ôàéëîâ. äîáàâèòü 4ûé ïàðàìåòð ðàñøèðåíèå ôàéëà âíóòðè àðõèâà.
-                            
-                            Shell (extrCmd)
-                            Else
-                            MsgBox ("CHECK:" & (WorkDir & dbRecSet.Fields(1).Value & "\Archive." & dbRecSet.Fields(2).Value))
-                            Err.Number = 0
-                         End If
-                         
-                    Next Attach
-                End If
-                If Not dbRecSet.EOF Then
-                dbRecSet.MoveNext
-                End If
-        Loop
-        End If
-    End If
-    myitem.Delete
-    'myitem.FlagIcon (olRedFlagIcon) 'olRedFlagIcon 'olNoFlagIcon
-Sleep (500)
-Next myitem
-MsgBox ("it's stop")
-
-End Sub
+'Cleaning
+Set OlApp = Nothing
+dbRecSet.Close
+Set dbRecSet = Nothing
+dbConn.Close
+Set dbConn = Nothing
+Set oShell = Nothing
 
 
 
